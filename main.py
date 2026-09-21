@@ -1,9 +1,15 @@
-import numpy as np
+import numpy as np # type: ignore
 from enum import Enum, auto
+import random
 
 K = 5
 ROWS = 20
 COLUMS = 30
+
+EMPTY = 0
+WALL = -1
+EXIT = -2
+FIRE = -3   
 
 class Actions(Enum):
     UP = auto()
@@ -12,14 +18,23 @@ class Actions(Enum):
     RIGHT = auto()
 
 class Map:
-    def __init__(self, grid):
+    def __init__(self, grid, exit):
         self.turn = 0
         self.grid = grid
+        self.exit = exit
 
     @classmethod
     def from_file(cls, filepath):
         grid = np.loadtxt(filepath, dtype=int)
-        return cls(grid)
+
+        exit = None
+        for i in range(ROWS):
+            for j in range(COLUMS):
+                if grid[i,j] == -2:
+                    exit = (i, j)
+                    break
+
+        return cls(grid, exit)
 
     def fire_expand(self):
         if (self.turn % K == 0):
@@ -28,12 +43,19 @@ class Map:
     def update(self):
         self.turn += 1
 
-class Agent:
-    def __init__(self, row, column):
-        self.row = row
-        self.column = column
-        self.alive = True
+    def fire_start(self):
+        return 0
 
+
+
+    
+
+class Agent:
+    def __init__(self, id, pos):
+        self.id = id
+        self.pos = pos
+        self.alive = True
+        
     def actions(self, grid):
         actions = []
 
