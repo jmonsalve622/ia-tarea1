@@ -22,6 +22,7 @@ class Map:
         self.turn = 0
         self.grid = grid
         self.exit = exit
+        self.fire = []
 
     @classmethod
     def from_file(cls, filepath):
@@ -38,17 +39,24 @@ class Map:
 
     def fire_expand(self):
         if (self.turn % K == 0):
-            new_grid = np.zeros(shape=(ROWS, COLUMS), dtype=int)
+            for cell in self.fire:
+                r = cell[0]
+                c = cell[1]
             
     def update(self):
         self.turn += 1
 
+    # Inicio del incendio en posición aleatorio, evitando iniciar en la salida o en una casilla con una persona
     def fire_start(self):
-        return 0
+        # Asegurarse de que el mapa este bien hecho para que no quede en un bucle sin salida
+        while(True):
+            r = random.randint(0, ROWS - 1)
+            c = random.randint(0, COLUMS - 1)
+            if (self.grid[r,c] > 0 or self.grid[r,c] == EXIT):
+                break
 
-
-
-    
+        self.grid[r,c] = FIRE
+        self.fire.append((r,c))
 
 class Agent:
     def __init__(self, id, pos):
