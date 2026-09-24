@@ -9,7 +9,7 @@ EXIT = 2
 FIRE = 3
 
 class Map:
-    def __init__(self, rows: int, cols: int):
+    def __init__(self, id: int, rows: int, cols: int):
         # Matriz de celdas, indexada [fila][columna]
         self.cells: list[list[Cell]] = [
             [Cell(r, c) for c in range(cols)]
@@ -18,13 +18,15 @@ class Map:
         self.rows = rows
         self.cols = cols
         self.exit_cell: tuple[int, int] = None
+        self.fire_start: tuple[int, int] = None
+        self.id = None
 
-    def get_cell(self, r: int, c: int):
-        return self.cells[r][c]
+    def get_cell(self, row: int, col: int):
+        return self.cells[row][col]
 
-    def orthogonal_neighbors(self, r: int, c: int):
+    def orthogonal_neighbors(self, row: int, col: int):
         # Movimientos en las cuatro driecciones
-        candidates = [(r+1, c), (r-1, c), (r, c+1), (r, c-1)]
+        candidates = [(row + 1, col), (row - 1, col), (row, col + 1), (row, col - 1)]
         return [
             (nr, nc) for nr, nc in candidates
             if 0 <= nr < self.rows and 0 <= nc < self.cols
@@ -35,7 +37,18 @@ class Map:
         with open(path) as f:
             lines = [line.strip() for line in f.readlines()]
         rows, cols = len(lines), len(lines[0])
-        map = cls(rows, cols)
+
+        id = None
+        if path.count('1'):
+            id = 1
+        elif path.count('2'):
+            id = 2
+        elif path.count('3'):
+            id = 3
+        else:
+            id = 0
+        
+        map = cls(id, rows, cols)
         for r, line in enumerate(lines):
             for c, char in enumerate(line):
                 cell = map.get_cell(r, c)
@@ -48,11 +61,10 @@ class Map:
     def spread_fire(self):
         pass
 
-
 class Cell:
-    def __init__(self, r: int, c: int):
-        self.r = r
-        self.c = c
+    def __init__(self, row: int, col: int):
+        self.row = row
+        self.col = col
         self.is_burned = False
         self.base_cost = 1.0
         self.is_wall = False
