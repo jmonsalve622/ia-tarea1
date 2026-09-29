@@ -1,94 +1,102 @@
-import numpy as np # type: ignore
-from enum import Enum, auto
-import random
+import os
+import pandas as pd
+from test import ALGORITHMS, MAP_FILES, NUM_AGENTS, NUM_SIMULATIONS, RESULTS_DIR
 
-K = 5
-ROWS = 20
-COLUMS = 30
+ALGORITHM_LABELS = {
+    "bfs": "BFS",
+    "dfs": "DFS",
+    "astar": "A*",
+    "greedy": "Greedy",
+    "genetic": "Genético",
+}
 
-EMPTY = 0
-WALL = -1
-EXIT = -2
-FIRE = -3   
-
-class Actions(Enum):
-    UP = auto()
-    DOWN = auto()
-    LEFT = auto()
-    RIGHT = auto()
-
-class Map:
-    def __init__(self, grid, exit):
-        self.turn = 0
-        self.grid = grid
-        self.exit = exit
-        self.fire = []
-
-    @classmethod
-    def from_file(cls, filepath):
-        grid = np.loadtxt(filepath, dtype=int)
-
-        exit = None
-        for i in range(ROWS):
-            for j in range(COLUMS):
-                if grid[i,j] == -2:
-                    exit = (i, j)
-                    break
-
-        return cls(grid, exit)
-
-    def fire_expand(self):
-        if (self.turn % K == 0):
-            for cell in self.fire:
-                r = cell[0]
-                c = cell[1]
-            
-    def update(self):
-        self.turn += 1
-
-    # Inicio del incendio en posición aleatorio, evitando iniciar en la salida o en una casilla con una persona
-    def fire_start(self):
-        # Asegurarse de que el mapa este bien hecho para que no quede en un bucle sin salida
-        while(True):
-            r = random.randint(0, ROWS - 1)
-            c = random.randint(0, COLUMS - 1)
-            if (self.grid[r,c] > 0 or self.grid[r,c] == EXIT):
-                break
-
-        self.grid[r,c] = FIRE
-        self.fire.append((r,c))
-
-class Agent:
-    def __init__(self, id, pos):
-        self.id = id
-        self.pos = pos
-        self.alive = True
-        
-    def actions(self, grid):
-        actions = []
-
-        # Moverse arriba
-        if (self.row > 0):
-            if (grid[self.row - 1,self.column] != 1 and grid[self.row - 1,self.column] != 3):
-                actions.append(Actions.UP)
-        # Moverse abajo
-        if (self.row < ROWS - 1):
-            if (grid[self.row + 1,self.column] != 1 and grid[self.row + 1,self.column] != 3):
-                actions.append(Actions.DOWN)
-        # Moverse a la izquierda
-        if (self.column > 0):
-            if (grid[self.row,self.column - 1] != 1 and grid[self.row,self.column - 1] != 3):
-                actions.append(Actions.LEFT)
-        # Moverse a la izquierda
-        if (self.column < COLUMS - 1):
-            if (grid[self.row,self.column + 1] != 1 and grid[self.row,self.column + 1] != 3):
-                actions.append(Actions.RIGHT)
-
-        return actions
-        
+MAP_LABELS = {
+    "low_density": "Baja densidad",
+    "medium_density": "Media densidad",
+    "high_density": "Alta densidad",
+}
 
 
+def load_summary() -> dict[str, list[dict]]:
+    """Lee cada CSV generado por run_algorithm_tests() y agrupa por algoritmo
+    la tasa de supervivencia y las estadísticas de turnos de cada mapa."""
+    summary: dict[str, list[dict]] = {}
+    for algorithm in ALGORITHMS:
+        algo_label = ALGORITHM_LABELS.get(algorithm, algorithm)
+        for density_label in MAP_FILES:
+            path = os.path.join(RESULTS_DIR, f"{algorithm}_{density_label}_results.csv")
+            if not os.path.exists(path):
+                continue  # falta correr ese test_<algoritmo>.py
+
+            df = pd.read_csv(path)
+            summary.setdefault(algo_label, []).append({
+                "map": MAP_LABELS.get(density_label, density_label),
+                "survival_rate": df["survivors"].sum() / df["total_agents"].sum() * 100,
+                "turns_mean": df["turns"].mean(),
+                "turns_std": df["turns"].std(),
+                "turns_min": int(df["turns"].min()),
+                "turns_max": int(df["turns"].max()),
+            })
+    return summary
 
 
+def print_header():
+    print("RESUMEN DE SIMULACIONES DE EVACUACIÓN")
+    print(f"Agentes por simulación : {NUM_AGENTS}")
+    print(f"Simulaciones por mapa  : {NUM_SIMULATIONS}")
+    print()
 
 
+def build_map_block(r: dict) -> list[str]:
+    """Las líneas de un mapa dentro del box de su algoritmo."""
+    return [
+        r["map"],
+        f"  Supervivencia : {r['survival_rate']:.1f} %",
+        (
+            f"  Turnos        : media {r['turns_mean']:.1f}"
+            f" | desv. std {r['turns_std']:.1f}"
+            f" | mín {r['turns_min']}"
+            f" | máx {r['turns_max']}"
+        ),
+    ]
+
+
+def print_algorithm_box(title: str, map_rows: list[dict]):
+    # None marca dónde va un separador entre mapas dentro del box
+    content: list[str | None] = []
+    for i, r in enumerate(map_rows):
+        if i > 0:
+            content.append(None)
+        content.extend(build_map_block(r))
+
+    text_lines = [line for line in content if line is not None]
+    width = max(len(title), max((len(line) for line in text_lines), default=0))
+
+    def border(left: str, mid: str, right: str):
+        print(left + mid * (width + 2) + right)
+
+    def text(line: str):
+        print(f"│ {line.ljust(width)} │")
+
+    border("┌", "─", "┐")
+    text(title)
+    border("├", "─", "┤")
+    for line in content:
+        if line is None:
+            border("├", "─", "┤")
+        else:
+            text(line)
+    border("└", "─", "┘")
+
+
+if __name__ == "__main__":
+    summary = load_summary()
+
+    if not summary:
+        print(f"No se encontraron resultados en {RESULTS_DIR}/")
+        print("Corré primero los test_<algoritmo>.py para generar los CSV.")
+    else:
+        print_header()
+        for algorithm, map_rows in summary.items():
+            print_algorithm_box(algorithm, map_rows)
+            print()

@@ -13,10 +13,11 @@ MAP_FILES = {
     "high_density": "./maps/map1.txt",
 }
 
-NUM_AGENTS = 5
+NUM_AGENTS = 10
 NUM_SIMULATIONS = 200
 RESULTS_DIR = "./results"
 
+ALGORITHMS = ["bfs", "dfs", "astar", "greedy", "genetic"]
 
 def free_cells(map_obj):
     """Celdas disponibles para posicionar agentes: ni muro, ni fuego, ni la salida."""
